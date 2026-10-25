@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#172033">
+  <meta name="description" content="Full-length personal learning notes that appear at unpredictable intervals.">
+  <title>Personal Sticky Notes</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">YOUR PERSONAL LEARNING SPACE</p>
+      <h1>Sticky Notes</h1>
+    </div>
+    <button id="settingsToggle" class="secondary">Settings</button>
+  </header>
+
+  <main>
+    <section class="intro">
+      <h2>Small lessons. Real practice.</h2>
+      <p>Save useful principles, read the full explanation, and let a note appear unexpectedly while this app is open.</p>
+      <div class="actions">
+        <button id="showNow">Show me a note</button>
+        <button id="addToggle" class="secondary">Write a note</button>
+      </div>
+      <p id="status" class="status" aria-live="polite">Random notes are paused until you start them.</p>
+    </section>
+
+    <section id="settingsPanel" class="panel hidden">
+      <h2>Appearance settings</h2>
+      <p class="muted">Random pop-ups work while this app is open and active. Browsers and Android restrict apps from opening full-screen windows randomly in the background.</p>
+      <label for="minMinutes">Minimum interval (minutes)</label>
+      <input id="minMinutes" type="number" min="1" max="720" value="20">
+      <label for="maxMinutes">Maximum interval (minutes)</label>
+      <input id="maxMinutes" type="number" min="2" max="1440" value="90">
+      <div class="inline-actions">
+        <button id="startRandom">Start random notes</button>
+        <button id="stopRandom" class="secondary">Pause</button>
+      </div>
+      <p class="muted small">Tip: for testing, set the minimum to 1 and maximum to 2 minutes. Keep the app open for pop-ups to appear.</p>
+    </section>
+
+    <section id="editorPanel" class="panel hidden">
+      <h2 id="editorHeading">Write a note</h2>
+      <label for="noteTitle">Title</label>
+      <input id="noteTitle" maxlength="100" placeholder="e.g. A boundary is not a punishment">
+      <label for="noteBody">Full note</label>
+      <textarea id="noteBody" rows="8" placeholder="Explain the principle, contrast it with what it is not, and include an example..."></textarea>
+      <div class="inline-actions">
+        <button id="saveNote">Save note</button>
+        <button id="cancelEdit" class="secondary">Cancel</button>
+      </div>
+      <p id="editorError" class="error" aria-live="polite"></p>
+    </section>
+
+    <section>
+      <div class="section-heading">
+        <div>
+          <h2>Your notes</h2>
+          <p class="muted">Stored on this device in this browser.</p>
+        </div>
+        <span id="noteCount" class="count">0 notes</span>
+      </div>
+      <div id="notesList" class="notes-grid"></div>
+    </section>
+  </main>
+
+  <div id="noteOverlay" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="popupTitle">
+    <article class="sticky">
+      <div class="sticky-top">
+        <span class="tag">A NOTE FOR YOU</span>
+        <button id="closeOverlay" class="close" aria-label="Close note">×</button>
+      </div>
+      <h2 id="popupTitle"></h2>
+      <div id="popupBody" class="note-content"></div>
+      <div class="sticky-bottom">
+        <span id="popupIndex" class="muted small"></span>
+        <div class="inline-actions">
+          <button id="anotherNote" class="secondary">Another note</button>
+          <button id="doneNote">I've read it</button>
+        </div>
+      </div>
+    </article>
+  </div>
+
+  <footer>
+    <p>Personal Sticky Notes · Free, private, and stored locally on this device.</p>
+  </footer>
+  <script src="app.js"></script>
+</body>
+</html>

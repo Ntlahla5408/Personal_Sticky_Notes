@@ -1,0 +1,11 @@
+{
+  "name": "Personal Sticky Notes",
+  "short_name": "Sticky Notes",
+  "description": "Full-length personal learning notes that appear at unpredictable intervals.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f4f6fa",
+  "theme_color": "#172033",
+  "icons": []
+}
