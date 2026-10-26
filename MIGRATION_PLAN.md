@@ -79,4 +79,23 @@ Content is bundled in `curated-notes.js`, so it is available offline and does no
 ## 6. Known review item
 
 The storage guard is deliberately conservative: if either the notes value or migration metadata is malformed, it blocks writes rather than trying to repair the value automatically. This favours preservation over automatic recovery. A future recovery/export workflow can be designed separately if needed.
-\n## 7. Optional browser push implementation\n\nThe browser push extension is isolated from the existing notes and progress keys. It adds a settings UI, client subscription controls, service-worker push/click handlers, a Cloudflare Worker, a D1 schema, and `PUSH_SETUP.md`. The Worker stores only push subscription and scheduling data; it sends a generic notification and the PWA selects the note locally when opened.\n\n- Active window: 08:00–22:00 in the browser-detected time zone.\n- Schedule: up to the selected daily goal, spread across the window with randomized slot times; Cron checks run every five minutes.\n- Local-only keys remain unchanged: `personal-sticky-notes-v1`, `personal-sticky-notes-curated-tech-v1`, `personal-sticky-notes-preferences-v1`, and `personal-sticky-notes-daily-progress-v1`.\n- Separate notification keys: `personal-sticky-notes-push-preferences-v1` and `personal-sticky-notes-push-device-token-v1`.\n- Required before live use: create D1, set the Pages origin, generate and configure VAPID keys, deploy the Worker, set `PUSH_API_BASE`, and test on the installed phone.\n- No merge to `main` is authorised by this plan.\n\n### Browser push validation still required\n\n- [ ] Validate Worker source with Wrangler and install/build the push dependency.\n- [ ] Apply `push-worker/schema.sql` to the remote D1 database.\n- [ ] Confirm API CORS and subscription management against the exact GitHub Pages origin.\n- [ ] Verify test push delivery and notification-click navigation on the installed phone.\n- [ ] Verify pause, resume, unsubscribe, expiry cleanup, daily rollover, active-hour boundaries and delivery while the PWA is closed.\n- [ ] Confirm existing notes and reading progress survive app update and service-worker activation.\n
+
+## 7. Optional browser push implementation
+
+The browser push extension is isolated from the existing notes and progress keys. It adds a settings UI, client subscription controls, service-worker push/click handlers, a Cloudflare Worker, a D1 schema, and `PUSH_SETUP.md`. The Worker stores only push subscription and scheduling data; it sends a generic notification and the PWA selects the note locally when opened.
+
+- Active window: 08:00–22:00 in the browser-detected time zone.
+- Schedule: up to the selected daily goal, spread across the window with randomized slot times; Cron checks run every five minutes.
+- Local-only keys remain unchanged: `personal-sticky-notes-v1`, `personal-sticky-notes-curated-tech-v1`, `personal-sticky-notes-preferences-v1`, and `personal-sticky-notes-daily-progress-v1`.
+- Separate notification keys: `personal-sticky-notes-push-preferences-v1` and `personal-sticky-notes-push-device-token-v1`.
+- Required before live use: create D1, set the Pages origin, generate and configure VAPID keys, deploy the Worker, set `PUSH_API_BASE`, and test on the installed phone.
+- No merge to `main` is authorised by this plan.
+
+### Browser push validation still required
+
+- [ ] Validate Worker source with Wrangler and install/build the push dependency.
+- [ ] Apply `push-worker/schema.sql` to the remote D1 database.
+- [ ] Confirm API CORS and subscription management against the exact GitHub Pages origin.
+- [ ] Verify test push delivery and notification-click navigation on the installed phone.
+- [ ] Verify pause, resume, unsubscribe, expiry cleanup, daily rollover, active-hour boundaries and delivery while the PWA is closed.
+- [ ] Confirm existing notes and reading progress survive app update and service-worker activation.
