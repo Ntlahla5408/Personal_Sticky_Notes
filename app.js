@@ -49,11 +49,12 @@ function isValidNote(note) {
 }
 
 function readStorage() {
+  let savedNotes = null;
+  let metadata = { version: 1, installedIds: [], dismissedIds: [] };
+  let rawNotes = null;
   try {
-    const rawNotes = localStorage.getItem(KEY);
+    rawNotes = localStorage.getItem(KEY);
     const rawMetadata = localStorage.getItem(MIGRATION_KEY);
-    let savedNotes = null;
-    let metadata = { version: 1, installedIds: [], dismissedIds: [] };
 
     if (rawNotes !== null) {
       savedNotes = JSON.parse(rawNotes);
@@ -78,7 +79,7 @@ function readStorage() {
   } catch (error) {
     storageBlocked = true;
     storageWarningMessage = "Some saved app data could not be read. It has been left unchanged, and the app will not write over it. If you need the notes recovered, keep this browser data intact.";
-    return { savedNotes: null, metadata: null, freshInstall: false, error };
+    return { savedNotes, metadata: null, freshInstall: false, error };
   }
 }
 
