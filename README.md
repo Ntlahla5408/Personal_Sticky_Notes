@@ -9,10 +9,11 @@ Little Notes (currently the Personal Sticky Notes repository) is a lightweight, 
 - **Curated metadata:** technology notes show their category, source publication date, source name, and a separate **Read source** link.
 - **Local storage:** notes remain on this device and in this browser. The app does not introduce accounts, analytics, or cloud synchronisation.
 - **Daily goal:** users choose a daily target and see progress; progress resets each local calendar day.
-- **Random pop-ups:** users can start or pause random note appearances. Delivery and background behaviour will be reviewed separately.
+- **In-app surprises:** users can start or pause random note appearances while the app is open.
+- **Optional browser push:** a separate Cloudflare Worker + D1 backend can schedule generic notifications between 08:00 and 22:00 local time. The notification opens the app, which chooses a note locally.
 - **Offline use:** the service worker caches the app and bundled note content.
 
-A browser app cannot reliably open a full-screen note at arbitrary times when it is closed or running in the background, especially on Android. Keep the app open for random pop-ups to work.
+In-app random pop-ups require the app to remain open and active. Optional Web Push can deliver a system notification while the app is closed when the browser, device, permission, network, and push service allow it. Delivery is not guaranteed. Push is not live until the separate Cloudflare resources are configured and the Worker URL is set in `app.js`; see `PUSH_SETUP.md`.
 
 ## Run on Windows
 
@@ -45,5 +46,6 @@ If saved JSON is malformed or the migration record cannot be read, the app does 
 ## Limitations
 
 - Notes are stored separately on each device; they do not synchronise between PC and phone.
-- Random pop-ups currently require the app to remain open. A background tab may be paused by the browser; browser/mobile delivery options are being evaluated separately.
+- In-app pop-ups require the app to remain open. Push notifications require the separately deployed Cloudflare Worker and D1 database, explicit browser permission, and compatible device/browser support. Delivery may be delayed or unavailable.
 - The curated collection is manually bundled, not a live news feed. Source availability and research findings can change, so the notes should be reviewed periodically.
+\n## Browser push notifications\n\nThe optional Web Push implementation and R0 deployment steps are documented in [`PUSH_SETUP.md`](PUSH_SETUP.md). Push subscription and scheduling data are stored in Cloudflare D1; note bodies and individual read-note IDs remain on the device. The backend sends a generic reminder, and the app selects a local note when the user taps it.\n
