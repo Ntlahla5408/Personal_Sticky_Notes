@@ -90,6 +90,14 @@ function nextSlotEpoch(row, dateKey, slot) {
   return localTimeToEpochSeconds(year, month, day, Math.floor(minute / 60), minute % 60, row.time_zone);
 }
 
+function findNextSlot(row, dateKey, startSlot, nowSeconds) {
+  for (let slot = Math.max(0, startSlot); slot < row.daily_goal; slot++) {
+    const scheduledAt = nextSlotEpoch(row, dateKey, slot);
+    if (scheduledAt >= nowSeconds + 60) return { slot, scheduledAt };
+  }
+  return null;
+}
+
 function validTimeZone(timeZone) {
   try { new Intl.DateTimeFormat("en-US", { timeZone }).format(); return true; }
   catch { return false; }
@@ -204,7 +212,9 @@ async function handleRequest(request, env) {
       created_at: now,
       updated_at: now
     };
-    row.next_send_at = nextSlotEpoch(row, local.dateKey, 0);
+    const firstSlot = findNextSlot(row, local.dateKey, 0, now);
+    row.sent_count = firstSlot ? firstSlot.slot : goal;
+    row.next_send_at = firstSlot ? firstSlot.scheduledAt : null;
     await env.DB.prepare(`INSERT INTO subscriptions
       (endpoint, subscription_json, device_token_hash, app_url, daily_goal, time_zone, start_hour, end_hour, local_day, sent_count, next_send_at, paused, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -234,8 +244,9 @@ async function handleRequest(request, env) {
     const local = readLocalParts(new Date(now * 1000), row.time_zone);
     if (row.local_day !== local.dateKey) sentCount = 0;
     if (!paused && sentCount < row.daily_goal && local.hour >= row.start_hour && local.hour < row.end_hour) {
-      const candidate = nextSlotEpoch(row, local.dateKey, sentCount);
-      nextSendAt = Math.max(candidate, now + 300);
+      const nextSlot = findNextSlot(row, local.dateKey, sentCount, now + 240);
+      sentCount = nextSlot ? nextSlot.slot : row.daily_goal;
+      nextSendAt = nextSlot ? nextSlot.scheduledAt : null;
     }
     await env.DB.prepare("UPDATE subscriptions SET paused = ?, local_day = ?, sent_count = ?, next_send_at = ?, updated_at = ? WHERE device_token_hash = ?")
       .bind(paused ? 1 : 0, local.dateKey, sentCount, nextSendAt, now, tokenHash).run();
@@ -252,8 +263,10 @@ async function handleRequest(request, env) {
     }
     const local = readLocalParts(new Date(), row.time_zone);
     const updated = { ...row, daily_goal: goal, start_hour: startHour, end_hour: endHour, local_day: local.dateKey };
-    const sentCount = row.local_day === local.dateKey ? Math.min(row.sent_count, goal) : 0;
-    const nextSend = sentCount < goal ? nextSlotEpoch(updated, local.dateKey, sentCount) : null;
+    const startSlot = row.local_day === local.dateKey ? Math.min(row.sent_count, goal) : 0;
+    const nextSlot = startSlot < goal ? findNextSlot(updated, local.dateKey, startSlot, Math.floor(Date.now() / 1000)) : null;
+    const sentCount = nextSlot ? nextSlot.slot : goal;
+    const nextSend = nextSlot ? nextSlot.scheduledAt : null;
     await env.DB.prepare("UPDATE subscriptions SET daily_goal=?, start_hour=?, end_hour=?, local_day=?, sent_count=?, next_send_at=?, updated_at=? WHERE device_token_hash=?")
       .bind(goal, startHour, endHour, local.dateKey, sentCount, nextSend, Math.floor(Date.now() / 1000), tokenHash).run();
     return json({ ok: true }, 200, cors);
@@ -281,20 +294,25 @@ async function runScheduler(controller, env) {
       let sentCount = row.sent_count;
       let nextSendAt = row.next_send_at;
       if (row.local_day !== local.dateKey) {
-        sentCount = 0;
-        nextSendAt = nextSlotEpoch(row, local.dateKey, 0);
-        await env.DB.prepare("UPDATE subscriptions SET local_day=?, sent_count=0, next_send_at=?, updated_at=? WHERE endpoint=?")
-          .bind(local.dateKey, nextSendAt, now, row.endpoint).run();
+        const firstSlot = findNextSlot(row, local.dateKey, 0, now);
+        sentCount = firstSlot ? firstSlot.slot : row.daily_goal;
+        nextSendAt = firstSlot ? firstSlot.scheduledAt : null;
+        await env.DB.prepare("UPDATE subscriptions SET local_day=?, sent_count=?, next_send_at=?, updated_at=? WHERE endpoint=?")
+          .bind(local.dateKey, sentCount, nextSendAt, now, row.endpoint).run();
       }
       if (sentCount >= row.daily_goal || local.hour < row.start_hour || local.hour >= row.end_hour) continue;
       if (nextSendAt == null) {
-        nextSendAt = nextSlotEpoch(row, local.dateKey, sentCount);
-        await env.DB.prepare("UPDATE subscriptions SET next_send_at=? WHERE endpoint=?").bind(nextSendAt, row.endpoint).run();
+        const nextSlot = findNextSlot(row, local.dateKey, sentCount, now);
+        sentCount = nextSlot ? nextSlot.slot : row.daily_goal;
+        nextSendAt = nextSlot ? nextSlot.scheduledAt : null;
+        await env.DB.prepare("UPDATE subscriptions SET sent_count=?, next_send_at=? WHERE endpoint=?").bind(sentCount, nextSendAt, row.endpoint).run();
       }
+      if (nextSendAt == null || sentCount >= row.daily_goal) continue;
       if (now < nextSendAt) continue;
       await deliver(env, row, "A little tech surprise is waiting", "Open Little Notes for a small discovery.", "little-notes-surprise");
-      sentCount += 1;
-      const next = sentCount < row.daily_goal ? nextSlotEpoch(row, local.dateKey, sentCount) : null;
+      const nextSlot = findNextSlot(row, local.dateKey, sentCount + 1, now);
+      sentCount = nextSlot ? nextSlot.slot : row.daily_goal;
+      const next = nextSlot ? nextSlot.scheduledAt : null;
       await env.DB.prepare("UPDATE subscriptions SET sent_count=?, next_send_at=?, updated_at=? WHERE endpoint=?")
         .bind(sentCount, next, now, row.endpoint).run();
     } catch (error) {
