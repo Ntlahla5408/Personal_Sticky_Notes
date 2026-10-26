@@ -50,7 +50,7 @@ async function limited(request, env) {
   const row = await env.DB.prepare(
     "SELECT request_count FROM request_limits WHERE ip_hash = ? AND local_day = ?"
   ).bind(ipHash, day).first();
-  return (row?.request_count || 0) <= 30;
+  return (row?.request_count || 0) <= 100;
 }
 
 function readLocalParts(date, timeZone) {
@@ -164,7 +164,14 @@ async function handleRequest(request, env) {
 
   if (url.pathname === "/api/subscribe") {
     const sub = body.subscription;
-    if (!sub || typeof sub.endpoint !== "string" || !sub.endpoint.startsWith("https://") ||
+    let endpointUrl;
+    try { endpointUrl = new URL(sub?.endpoint); } catch { endpointUrl = null; }
+    const allowedPushHost = endpointUrl && (endpointUrl.hostname === "fcm.googleapis.com" ||
+      endpointUrl.hostname === "updates.push.services.mozilla.com" ||
+      endpointUrl.hostname === "push.services.mozilla.com" ||
+      endpointUrl.hostname === "web.push.apple.com" ||
+      endpointUrl.hostname.endsWith(".notify.windows.com"));
+    if (!sub || !endpointUrl || endpointUrl.protocol !== "https:" || endpointUrl.port && endpointUrl.port !== "443" || !allowedPushHost ||
         !sub.keys || typeof sub.keys.p256dh !== "string" || typeof sub.keys.auth !== "string") {
       return json({ error: "Invalid push subscription." }, 400, cors);
     }
@@ -179,6 +186,7 @@ async function handleRequest(request, env) {
       return json({ error: "Invalid daily goal or active hours." }, 400, cors);
     }
     const now = Math.floor(Date.now() / 1000);
+    await env.DB.prepare("DELETE FROM subscriptions WHERE device_token_hash = ? AND endpoint != ?").bind(tokenHash, sub.endpoint).run();
     const local = readLocalParts(new Date(), timeZone);
     const row = {
       endpoint: sub.endpoint,
@@ -220,8 +228,17 @@ async function handleRequest(request, env) {
 
   if (url.pathname === "/api/pause") {
     const paused = body.paused === true;
-    await env.DB.prepare("UPDATE subscriptions SET paused = ?, updated_at = ? WHERE device_token_hash = ?")
-      .bind(paused ? 1 : 0, Math.floor(Date.now() / 1000), tokenHash).run();
+    const now = Math.floor(Date.now() / 1000);
+    let nextSendAt = row.next_send_at;
+    let sentCount = row.sent_count;
+    const local = readLocalParts(new Date(now * 1000), row.time_zone);
+    if (row.local_day !== local.dateKey) sentCount = 0;
+    if (!paused && sentCount < row.daily_goal && local.hour >= row.start_hour && local.hour < row.end_hour) {
+      const candidate = nextSlotEpoch(row, local.dateKey, sentCount);
+      nextSendAt = Math.max(candidate, now + 300);
+    }
+    await env.DB.prepare("UPDATE subscriptions SET paused = ?, local_day = ?, sent_count = ?, next_send_at = ?, updated_at = ? WHERE device_token_hash = ?")
+      .bind(paused ? 1 : 0, local.dateKey, sentCount, nextSendAt, now, tokenHash).run();
     return json({ ok: true, paused }, 200, cors);
   }
 
