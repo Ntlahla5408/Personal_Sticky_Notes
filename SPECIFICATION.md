@@ -1,7 +1,7 @@
 # Personal Sticky Notes — Technology Curiosity App
 
 **Specification version:** 0.2  
-**Status:** Draft for review — application implementation is not yet approved  
+**Status:** Implementation underway on a feature branch; read-only first release  
 **Repository:** https://github.com/Ntlahla5408/Personal_Sticky_Notes
 
 ## 1. Purpose
@@ -17,7 +17,7 @@ It is not intended to be a complete course, a step-by-step tutorial library, or 
 - Use a mix of primary research, university/research institution material, specialist technology reporting, and reputable broader technology reporting.
 - Preserve full-length note pop-ups and random appearances while the app is open.
 - Preserve the existing lightweight HTML, CSS, and JavaScript architecture where practical.
-- Retain note creation, editing, deletion, local persistence, manual display, and configurable random-note intervals.
+- Make note content read-only: users can browse and read notes but cannot create, edit, or delete notes in this release. Preserve local persistence, manual display, and configurable random-note intervals.
 - Treat automatic news ingestion as a later phase, not a requirement for the first release.
 
 ## 3. Intended audience and experience
@@ -95,7 +95,7 @@ The first release is a manually curated set. It must not claim to provide live o
 - The reader can show a note immediately.
 - The app can show a full-length note at random intervals while open and active.
 - The reader can move to another note from the pop-up.
-- The reader can browse the available notes and open a selected note.
+- The reader can browse the available notes and open a selected note. Note content is read-only.
 - Curated notes display their category, source publication date, source name, and a working direct source link.
 - Source links are visibly clickable and open safely without replacing the app unexpectedly.
 
@@ -126,16 +126,16 @@ The first release is a manually curated set. It must not claim to provide live o
 
 The current application uses the local-storage key `personal-sticky-notes-v1`. On initialisation it loads stored notes when present and otherwise seeds the existing eight notes. Replacing the seed array alone would therefore fail to add new content for users who already have saved data.
 
-The implementation plan must address this explicitly:
+The implementation follows these safeguards:
 
 1. Preserve the existing storage key unless testing identifies a compelling reason to version it.
 2. Give each of the 12 curated technology notes a stable, namespaced ID, such as `curated-tech-...`.
 3. Identify the existing eight starter notes using their current seed IDs or another explicit legacy mapping.
 4. Add missing curated notes idempotently: running the migration more than once must not create duplicates.
 5. Preserve all user-created notes and any user edits. Never replace an existing record merely because its ID or title resembles curated content.
-6. Decide and document how the eight legacy starter notes are handled. The safe default is to preserve them as existing notes unless a separate, explicit user-approved content-cleanup decision says otherwise.
-7. Keep the migration repeatable and test it against fresh storage, existing starter data, user-created notes, edited notes, deleted notes, and partially populated storage.
-8. Do not clear local storage as a migration shortcut.
+6. Seed the eight original notes only when the notes key is absent (fresh install). For an existing installation, do not restore a starter note that is missing from stored data.
+7. Keep the migration repeatable and test it against fresh storage, existing starter data, existing personal notes, edited records, removed curated records, and partially populated storage.
+8. Do not clear local storage as a migration shortcut. If note data or migration metadata is malformed, preserve the original value, display a warning, and block migration writes.
 
 ## 9. Non-functional requirements
 
@@ -169,7 +169,7 @@ The first release is ready for review when:
 - Sources are checked and claims accurately distinguish research demonstrations, proposals, company claims, and available products.
 - Full-length notes display correctly and source links work.
 - Immediate display, random selection, interval settings, start/pause behaviour, and the existing pop-up controls continue to work.
-- Create, edit, and delete operations still work for personal notes.
+- Note content cannot be created, edited, or deleted through the interface.
 - Existing personal notes and edits survive the content migration.
 - Re-running the migration does not duplicate curated notes.
 - The interface remains usable on desktop and mobile.
@@ -178,6 +178,6 @@ The first release is ready for review when:
 
 ## 12. Implementation and change control
 
-This specification documents the intended outcome; it does not itself authorise application-code changes. Before modifying application files, review and agree on the implementation plan, especially the local-storage migration and treatment of the eight existing starter notes.
+The implementation is authorised on the dedicated feature branch. Review the implementation plan and test results before merging to the default branch.
 
-Implementation should be staged and reviewed in small, understandable changes. Verify the current branch and repository state before writing. Do not make destructive storage changes or remove existing notes without explicit approval.
+Implementation is staged on a dedicated feature branch. Do not make destructive storage changes or remove existing notes without explicit approval.
