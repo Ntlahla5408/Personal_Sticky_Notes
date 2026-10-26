@@ -48,4 +48,7 @@ If saved JSON is malformed or the migration record cannot be read, the app does 
 - Notes are stored separately on each device; they do not synchronise between PC and phone.
 - In-app pop-ups require the app to remain open. Push notifications require the separately deployed Cloudflare Worker and D1 database, explicit browser permission, and compatible device/browser support. Delivery may be delayed or unavailable.
 - The curated collection is manually bundled, not a live news feed. Source availability and research findings can change, so the notes should be reviewed periodically.
-\n## Browser push notifications\n\nThe optional Web Push implementation and R0 deployment steps are documented in [`PUSH_SETUP.md`](PUSH_SETUP.md). Push subscription and scheduling data are stored in Cloudflare D1; note bodies and individual read-note IDs remain on the device. The backend sends a generic reminder, and the app selects a local note when the user taps it.\n
+
+## Browser push notifications
+
+The optional Web Push implementation and R0 deployment steps are documented in [`PUSH_SETUP.md`](PUSH_SETUP.md). Push subscription and scheduling data are stored in Cloudflare D1; note bodies and individual read-note IDs remain on the device. The backend sends a generic reminder, and the app selects a local note when the user taps it.
