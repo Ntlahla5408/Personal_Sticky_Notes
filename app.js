@@ -407,7 +407,7 @@ document.addEventListener("visibilitychange", () => {
   if (document.hidden) {
     clearTimeout(timerId);
     timerId = null;
-  } else if ($("status").textContent.startsWith("Random notes are on")) {
+  } else if ($("status").textContent.startsWith("Random surprises are on")) {
     scheduleNext();
   }
 });
