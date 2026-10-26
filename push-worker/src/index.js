@@ -218,13 +218,13 @@ async function handleRequest(request, env) {
     return json({ ok: true, message: "Notifications enabled." }, 200, cors);
   }
 
-  const row = await env.DB.prepare("SELECT * FROM subscriptions WHERE device_token_hash = ? LIMIT 1").bind(tokenHash).first();
-  if (!row) return json({ error: "This device is not registered. Enable notifications again." }, 404, cors);
-
   if (url.pathname === "/api/unsubscribe") {
     await env.DB.prepare("DELETE FROM subscriptions WHERE device_token_hash = ?").bind(tokenHash).run();
     return json({ ok: true }, 200, cors);
   }
+
+  const row = await env.DB.prepare("SELECT * FROM subscriptions WHERE device_token_hash = ? LIMIT 1").bind(tokenHash).first();
+  if (!row) return json({ error: "This device is not registered. Enable notifications again." }, 404, cors);
 
   if (url.pathname === "/api/pause") {
     const paused = body.paused === true;
@@ -271,7 +271,7 @@ async function handleRequest(request, env) {
   return json({ error: "Not found." }, 404, cors);
 }
 
-async function scheduled(controller, env) {
+async function runScheduler(controller, env) {
   const now = Math.floor(Date.now() / 1000);
   const result = await env.DB.prepare("SELECT * FROM subscriptions WHERE paused = 0").all();
   for (const original of result.results || []) {
@@ -319,6 +319,6 @@ export default {
     }
   },
   async scheduled(controller, env, context) {
-    context.waitUntil(scheduled(controller, env));
+    context.waitUntil(runScheduler(controller, env));
   }
 };
