@@ -81,9 +81,9 @@ window.CURATED_TECH_NOTES = [
     id: "curated-tech-lasercomms-008",
     title: "Sending data across space with lasers",
     category: "Space technology",
-    sourceDate: "2025-09-02",
+    sourceDate: "2025-09-17",
     sourceName: "NASA Jet Propulsion Laboratory",
-    sourceUrl: "https://www.jpl.nasa.gov/missions/deep-space-optical-communications-dsoc/",
+    sourceUrl: "https://www.jpl.nasa.gov/images/pia26663-timelapse-of-jpls-table-mountain-facility-beaming-laser-beacon-to-psyche/",
     noteType: "curated",
     body: "NASA's Deep Space Optical Communications (DSOC) experiment demonstrated high-bandwidth laser communications beyond the Earth–Moon system. Instead of encoding data on radio waves, the system used near-infrared laser light to send information between a spacecraft and ground equipment. During the demonstration it transmitted data from distances comparable to, and greater than, the distance between Earth and the Sun.\n\nOptical communication can potentially send more data in a given period than conventional radio-frequency links, which matters as spacecraft collect increasingly detailed images and scientific measurements. The system requires a laser transmitter, a receiver, and highly precise pointing and tracking so the narrow beam reaches its target.\n\nWhy it matters: future missions could return richer scientific data or communicate more efficiently over long distances. The demonstration also helps engineers understand how to operate optical links across changing distances and conditions.\n\nImportant limits: laser links are sensitive to pointing accuracy, weather at ground stations, and the geometry of the connection. DSOC was a technology demonstration, not a replacement for every spacecraft radio system. Missions may use optical and radio communications together.",
     question: "What trade-offs would mission designers consider when choosing between radio and laser communications?"
