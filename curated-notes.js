@@ -114,9 +114,9 @@ window.CURATED_TECH_NOTES = [
     id: "curated-tech-fusion-011",
     title: "Fusion ignition is a milestone, not a power station",
     category: "Energy technology",
-    sourceDate: "2022-12-13",
+    sourceDate: "2023-02-23",
     sourceName: "Lawrence Livermore National Laboratory",
-    sourceUrl: "https://lasers.llnl.gov/news/ignition",
+    sourceUrl: "https://lasers.llnl.gov/news/innovations-enabled-llnls-fusion-ignition-breakthrough",
     noteType: "curated",
     body: "In December 2022, researchers at the US National Ignition Facility reported fusion ignition in a laser-driven experiment: the fusion fuel released more energy than the laser energy delivered to the target. This was a major scientific milestone, but it is important to understand exactly what the energy comparison measured. The entire facility used far more energy to run the lasers than the fusion fuel released.\n\nFusion joins light atomic nuclei and releases energy. The Sun uses gravitational pressure to sustain fusion, while laboratory experiments must create suitable conditions by other means. At the National Ignition Facility, powerful lasers compress and heat a tiny fuel capsule for a very short time.\n\nWhy it matters: demonstrating ignition provides evidence that a key part of inertial-confinement fusion can work. Continued research may improve understanding of plasma physics and the engineering needed for future fusion energy systems.\n\nImportant limits: a successful shot is not the same as a power plant. A commercial facility would need repeated, reliable reactions; efficient energy delivery; durable materials; fuel systems; maintenance; and an overall design that produces more usable electricity than it consumes. Those challenges remain substantial.",
     question: "Why is it important to distinguish energy released by a fusion target from the total energy consumed by the facility?"
