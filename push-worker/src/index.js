@@ -206,25 +206,25 @@ async function handleRequest(request, env) {
       start_hour: startHour,
       end_hour: endHour,
       local_day: local.dateKey,
-      sent_count: 0,
+      next_slot: 0,
       next_send_at: null,
       paused: 0,
       created_at: now,
       updated_at: now
     };
     const firstSlot = findNextSlot(row, local.dateKey, 0, now);
-    row.sent_count = firstSlot ? firstSlot.slot : goal;
+    row.next_slot = firstSlot ? firstSlot.slot : goal;
     row.next_send_at = firstSlot ? firstSlot.scheduledAt : null;
     await env.DB.prepare(`INSERT INTO subscriptions
-      (endpoint, subscription_json, device_token_hash, app_url, daily_goal, time_zone, start_hour, end_hour, local_day, sent_count, next_send_at, paused, created_at, updated_at)
+      (endpoint, subscription_json, device_token_hash, app_url, daily_goal, time_zone, start_hour, end_hour, local_day, next_slot, next_send_at, paused, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(endpoint) DO UPDATE SET
       subscription_json=excluded.subscription_json, device_token_hash=excluded.device_token_hash,
       app_url=excluded.app_url, daily_goal=excluded.daily_goal, time_zone=excluded.time_zone,
       start_hour=excluded.start_hour, end_hour=excluded.end_hour, local_day=excluded.local_day,
-      sent_count=0, next_send_at=excluded.next_send_at, paused=0, updated_at=excluded.updated_at`)
+      next_slot=0, next_send_at=excluded.next_send_at, paused=0, updated_at=excluded.updated_at`)
       .bind(row.endpoint, row.subscription_json, row.device_token_hash, row.app_url, row.daily_goal, row.time_zone,
-        row.start_hour, row.end_hour, row.local_day, row.sent_count, row.next_send_at, row.paused, row.created_at, row.updated_at).run();
+        row.start_hour, row.end_hour, row.local_day, row.next_slot, row.next_send_at, row.paused, row.created_at, row.updated_at).run();
     return json({ ok: true, message: "Notifications enabled." }, 200, cors);
   }
 
@@ -240,7 +240,7 @@ async function handleRequest(request, env) {
     const paused = body.paused === true;
     const now = Math.floor(Date.now() / 1000);
     let nextSendAt = row.next_send_at;
-    let sentCount = row.sent_count;
+    let sentCount = row.next_slot;
     const local = readLocalParts(new Date(now * 1000), row.time_zone);
     if (row.local_day !== local.dateKey) sentCount = 0;
     if (!paused && sentCount < row.daily_goal && local.hour >= row.start_hour && local.hour < row.end_hour) {
@@ -248,7 +248,7 @@ async function handleRequest(request, env) {
       sentCount = nextSlot ? nextSlot.slot : row.daily_goal;
       nextSendAt = nextSlot ? nextSlot.scheduledAt : null;
     }
-    await env.DB.prepare("UPDATE subscriptions SET paused = ?, local_day = ?, sent_count = ?, next_send_at = ?, updated_at = ? WHERE device_token_hash = ?")
+    await env.DB.prepare("UPDATE subscriptions SET paused = ?, local_day = ?, next_slot = ?, next_send_at = ?, updated_at = ? WHERE device_token_hash = ?")
       .bind(paused ? 1 : 0, local.dateKey, sentCount, nextSendAt, now, tokenHash).run();
     return json({ ok: true, paused }, 200, cors);
   }
@@ -263,11 +263,11 @@ async function handleRequest(request, env) {
     }
     const local = readLocalParts(new Date(), row.time_zone);
     const updated = { ...row, daily_goal: goal, start_hour: startHour, end_hour: endHour, local_day: local.dateKey };
-    const startSlot = row.local_day === local.dateKey ? Math.min(row.sent_count, goal) : 0;
+    const startSlot = row.local_day === local.dateKey ? Math.min(row.next_slot, goal) : 0;
     const nextSlot = startSlot < goal ? findNextSlot(updated, local.dateKey, startSlot, Math.floor(Date.now() / 1000)) : null;
     const sentCount = nextSlot ? nextSlot.slot : goal;
     const nextSend = nextSlot ? nextSlot.scheduledAt : null;
-    await env.DB.prepare("UPDATE subscriptions SET daily_goal=?, start_hour=?, end_hour=?, local_day=?, sent_count=?, next_send_at=?, updated_at=? WHERE device_token_hash=?")
+    await env.DB.prepare("UPDATE subscriptions SET daily_goal=?, start_hour=?, end_hour=?, local_day=?, next_slot=?, next_send_at=?, updated_at=? WHERE device_token_hash=?")
       .bind(goal, startHour, endHour, local.dateKey, sentCount, nextSend, Math.floor(Date.now() / 1000), tokenHash).run();
     return json({ ok: true }, 200, cors);
   }
@@ -291,13 +291,13 @@ async function runScheduler(controller, env) {
     try {
       const row = original;
       const local = readLocalParts(new Date(now * 1000), row.time_zone);
-      let sentCount = row.sent_count;
+      let sentCount = row.next_slot;
       let nextSendAt = row.next_send_at;
       if (row.local_day !== local.dateKey) {
         const firstSlot = findNextSlot(row, local.dateKey, 0, now);
         sentCount = firstSlot ? firstSlot.slot : row.daily_goal;
         nextSendAt = firstSlot ? firstSlot.scheduledAt : null;
-        await env.DB.prepare("UPDATE subscriptions SET local_day=?, sent_count=?, next_send_at=?, updated_at=? WHERE endpoint=?")
+        await env.DB.prepare("UPDATE subscriptions SET local_day=?, next_slot=?, next_send_at=?, updated_at=? WHERE endpoint=?")
           .bind(local.dateKey, sentCount, nextSendAt, now, row.endpoint).run();
       }
       if (sentCount >= row.daily_goal || local.hour < row.start_hour || local.hour >= row.end_hour) continue;
@@ -305,7 +305,7 @@ async function runScheduler(controller, env) {
         const nextSlot = findNextSlot(row, local.dateKey, sentCount, now);
         sentCount = nextSlot ? nextSlot.slot : row.daily_goal;
         nextSendAt = nextSlot ? nextSlot.scheduledAt : null;
-        await env.DB.prepare("UPDATE subscriptions SET sent_count=?, next_send_at=? WHERE endpoint=?").bind(sentCount, nextSendAt, row.endpoint).run();
+        await env.DB.prepare("UPDATE subscriptions SET next_slot=?, next_send_at=? WHERE endpoint=?").bind(sentCount, nextSendAt, row.endpoint).run();
       }
       if (nextSendAt == null || sentCount >= row.daily_goal) continue;
       if (now < nextSendAt) continue;
@@ -313,7 +313,7 @@ async function runScheduler(controller, env) {
       const nextSlot = findNextSlot(row, local.dateKey, sentCount + 1, now);
       sentCount = nextSlot ? nextSlot.slot : row.daily_goal;
       const next = nextSlot ? nextSlot.scheduledAt : null;
-      await env.DB.prepare("UPDATE subscriptions SET sent_count=?, next_send_at=?, updated_at=? WHERE endpoint=?")
+      await env.DB.prepare("UPDATE subscriptions SET next_slot=?, next_send_at=?, updated_at=? WHERE endpoint=?")
         .bind(sentCount, next, now, row.endpoint).run();
     } catch (error) {
       // A failed delivery is retried on a later cron tick; no private subscription data is logged.
