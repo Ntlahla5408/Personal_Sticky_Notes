@@ -368,10 +368,6 @@ function scheduleNext() {
 }
 
 function startRandom() {
-  if (Number($("maxMinutes").value) < Number($("minMinutes").value)) {
-    $("status").textContent = "Maximum interval must be greater than or equal to the minimum.";
-    return;
-  }
   scheduleNext();
   $("status").textContent = "Random surprises are on while this app is open. The next appearance time is unpredictable.";
   $("settingsStatus").textContent = "Surprises are active while this app is open and active.";
