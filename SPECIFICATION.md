@@ -179,7 +179,7 @@ The first release is ready for review when:
 - The README accurately describes the curated content and limitations and does not claim that an automatic live news feed exists.
 - Fresh-install and upgrade tests both pass.
 
-## 12. Implementation and change control
+## 13. Implementation and change control
 
 The implementation is authorised on the dedicated feature branch. Review the implementation plan and test results before merging to the default branch.
 
