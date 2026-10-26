@@ -1,7 +1,7 @@
 {
-  "name": "Personal Sticky Notes",
-  "short_name": "Sticky Notes",
-  "description": "A paper-inspired personal notebook for daily learning discoveries.",
+  "name": "Little Notes",
+  "short_name": "Little Notes",
+  "description": "A paper-inspired personal notebook for daily learning discoveries and technology curiosities.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
