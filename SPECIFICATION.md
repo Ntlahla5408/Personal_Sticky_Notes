@@ -1,6 +1,6 @@
 # Personal Sticky Notes — Technology Curiosity App
 
-**Specification version:** 0.2  
+**Specification version:** 0.3  
 **Status:** Implementation underway on a feature branch; read-only first release  
 **Repository:** https://github.com/Ntlahla5408/Personal_Sticky_Notes
 
@@ -17,7 +17,10 @@ It is not intended to be a complete course, a step-by-step tutorial library, or 
 - Use a mix of primary research, university/research institution material, specialist technology reporting, and reputable broader technology reporting.
 - Preserve full-length note pop-ups and random appearances while the app is open.
 - Preserve the existing lightweight HTML, CSS, and JavaScript architecture where practical.
-- Make note content read-only: users can browse and read notes but cannot create, edit, or delete notes in this release. Preserve local persistence, manual display, and configurable random-note intervals.
+- Make note content read-only: users can browse and read notes but cannot create, edit, or delete notes in this release. Preserve local persistence and manual display.
+- Use a warm, paper-inspired mobile-first interface with a cream/off-white background, terracotta/chestnut accents, dark brown/charcoal text, and sans-serif typography.
+- Provide Home, Explore, and Settings through fixed bottom navigation.
+- Provide a card-based note collection, category filtering and search, a dedicated reading pop-up with source attribution, and a daily note goal that resets each local calendar day.
 - Treat automatic news ingestion as a later phase, not a requirement for the first release.
 
 ## 3. Intended audience and experience
@@ -95,20 +98,20 @@ The first release is a manually curated set. It must not claim to provide live o
 - The reader can show a note immediately.
 - The app can show a full-length note at random intervals while open and active.
 - The reader can move to another note from the pop-up.
-- The reader can browse the available notes and open a selected note. Note content is read-only.
+- The reader can browse the available notes, search titles/body text, filter by category, and open a selected note. Note content is read-only.
 - Curated notes display their category, source publication date, source name, and a working direct source link.
 - Source links are visibly clickable and open safely without replacing the app unexpectedly.
 
 ### 7.2 Scheduling
 
-- The reader can set the minimum and maximum interval between random notes.
-- Invalid interval values are rejected with a clear message.
+- The reader can choose a daily note goal (1, 3, 5, 8, 10, 15, or 20 notes).
+- Daily progress counts distinct notes marked as read and resets when the local calendar date changes.
 - The reader can start/restart or pause random appearances.
 - Scheduling continues to be limited by browser and device background restrictions. The app must not promise arbitrary full-screen pop-ups while closed or reliably in the background.
 
 ### 7.3 Personal notes
 
-- The reader can create, edit, and delete personal notes.
+- The reader cannot create, edit, or delete note content in the first release.
 - Existing notes remain stored in local browser storage.
 - User-created notes are not overwritten by curated content updates.
 - User-created notes do not need curated-source metadata.
@@ -168,7 +171,7 @@ The first release is ready for review when:
 - Each curated note has a clear title, category, source publication date, source name, direct link, plain-language explanation, significance, and relevant caveats.
 - Sources are checked and claims accurately distinguish research demonstrations, proposals, company claims, and available products.
 - Full-length notes display correctly and source links work.
-- Immediate display, random selection, interval settings, start/pause behaviour, and the existing pop-up controls continue to work.
+- Immediate display, random selection, start/pause behaviour, and the existing pop-up controls continue to work. The daily goal and progress indicator reset correctly at local midnight.
 - Note content cannot be created, edited, or deleted through the interface.
 - Existing personal notes and edits survive the content migration.
 - Re-running the migration does not duplicate curated notes.
