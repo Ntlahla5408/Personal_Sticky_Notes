@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS subscriptions (
   start_hour INTEGER NOT NULL DEFAULT 8 CHECK (start_hour BETWEEN 0 AND 23),
   end_hour INTEGER NOT NULL DEFAULT 22 CHECK (end_hour BETWEEN 1 AND 24),
   local_day TEXT NOT NULL DEFAULT '',
-  sent_count INTEGER NOT NULL DEFAULT 0,
+  next_slot INTEGER NOT NULL DEFAULT 0,
   next_send_at INTEGER,
   paused INTEGER NOT NULL DEFAULT 0 CHECK (paused IN (0, 1)),
   created_at INTEGER NOT NULL,
