@@ -2,6 +2,11 @@ const KEY = "personal-sticky-notes-v1";
 const MIGRATION_KEY = "personal-sticky-notes-curated-tech-v1";
 const PREFERENCES_KEY = "personal-sticky-notes-preferences-v1";
 const DAILY_PROGRESS_KEY = "personal-sticky-notes-daily-progress-v1";
+const PUSH_PREFERENCES_KEY = "personal-sticky-notes-push-preferences-v1";
+const PUSH_DEVICE_TOKEN_KEY = "personal-sticky-notes-push-device-token-v1";
+// Set this to the deployed Worker URL (for example, https://little-notes-push.<account>.workers.dev).
+// Keep the VAPID private key only in Cloudflare Worker secrets, never here.
+const PUSH_API_BASE = "";
 const DEFAULT_DAILY_GOAL = 5;
 let dailyGoal = DEFAULT_DAILY_GOAL;
 let dailyProgress = { date: "", readIds: [] };
@@ -47,6 +52,8 @@ let timerId = null;
 let currentNoteId = null;
 let storageBlocked = false;
 let storageWarningMessage = "";
+let pushPreferences = { enabled: false, paused: false };
+let serviceWorkerRegistration = null;
 
 function isValidNote(note) {
   return note && typeof note === "object" &&
@@ -189,6 +196,7 @@ function saveDailyGoal() {
     $("goalSaved").textContent = "This browser could not save your goal. It applies until you close the app.";
   }
   renderDailyProgress();
+  syncPushSettings();
 }
 
 function renderDailyProgress() {
@@ -367,6 +375,172 @@ function scheduleNext() {
   }, randomDelay());
 }
 
+
+function loadPushPreferences() {
+  try {
+    const raw = localStorage.getItem(PUSH_PREFERENCES_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed.enabled === "boolean" && typeof parsed.paused === "boolean") {
+        pushPreferences = { enabled: parsed.enabled, paused: parsed.paused };
+      }
+    }
+  } catch {
+    // Notification preferences are optional; never modify note storage to repair them.
+  }
+  renderPushControls();
+}
+
+function savePushPreferences() {
+  try { localStorage.setItem(PUSH_PREFERENCES_KEY, JSON.stringify(pushPreferences)); }
+  catch { /* Push can still work for this session if browser storage is unavailable. */ }
+  renderPushControls();
+}
+
+function renderPushControls(message) {
+  const status = $("pushStatus");
+  if (!status) return;
+  if (message) status.textContent = message;
+  else if (!PUSH_API_BASE) status.textContent = "The push backend is not connected yet. After deploying the Cloudflare Worker, set PUSH_API_BASE in app.js.";
+  else if (!("Notification" in window) || !("PushManager" in window) || !("serviceWorker" in navigator)) status.textContent = "This browser does not support the required push notification features.";
+  else if (!pushPreferences.enabled) status.textContent = "Notifications are off. Your notes remain stored on this device.";
+  else if (pushPreferences.paused) status.textContent = "Notifications are paused. Your notes and daily goal are unchanged.";
+  else status.textContent = "Notifications are enabled for 08:00–22:00 local time. Delivery depends on browser and device support.";
+  $("enablePush").disabled = Boolean(pushPreferences.enabled);
+  $("testPush").disabled = !PUSH_API_BASE || !pushPreferences.enabled || pushPreferences.paused;
+  $("pausePush").disabled = !PUSH_API_BASE || !pushPreferences.enabled;
+  $("pausePush").textContent = pushPreferences.paused ? "Resume notifications" : "Pause notifications";
+  $("disablePush").disabled = !PUSH_API_BASE || !pushPreferences.enabled;
+}
+
+function base64UrlToBytes(value) {
+  const padded = value + "=".repeat((4 - value.length % 4) % 4);
+  const binary = atob(padded.replace(/-/g, "+").replace(/_/g, "/"));
+  return Uint8Array.from(binary, character => character.charCodeAt(0));
+}
+
+function getPushDeviceToken() {
+  let token = "";
+  try { token = localStorage.getItem(PUSH_DEVICE_TOKEN_KEY) || ""; } catch { /* Continue with a session token. */ }
+  if (/^[A-Za-z0-9_-]{40,100}$/.test(token)) return token;
+  const bytes = new Uint8Array(32);
+  if (!crypto || typeof crypto.getRandomValues !== "function") throw new Error("Secure token generation is unavailable in this browser.");
+  crypto.getRandomValues(bytes);
+  token = Array.from(bytes, byte => byte.toString(16).padStart(2, "0")).join("");
+  try { localStorage.setItem(PUSH_DEVICE_TOKEN_KEY, token); } catch { /* Token remains available for this session. */ }
+  return token;
+}
+
+async function pushApi(path, options = {}, token = "") {
+  if (!PUSH_API_BASE) throw new Error("The Cloudflare Worker URL has not been configured in app.js.");
+  const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
+  if (token) headers["X-Device-Token"] = token;
+  const response = await fetch(PUSH_API_BASE.replace(/\/+$/, "") + path, { ...options, headers });
+  let result = {};
+  try { result = await response.json(); } catch { /* Report the HTTP status below. */ }
+  if (!response.ok) throw new Error(result.error || "Push service returned HTTP " + response.status + ".");
+  return result;
+}
+
+async function enablePushNotifications() {
+  try {
+    if (!PUSH_API_BASE) {
+      renderPushControls("The Cloudflare Worker has not been deployed/configured yet. No notification permission was requested.");
+      return;
+    }
+    if (!("Notification" in window) || !("PushManager" in window) || !("serviceWorker" in navigator)) {
+      renderPushControls("This browser does not support Web Push. Your notes are unaffected.");
+      return;
+    }
+    const permission = await Notification.requestPermission();
+    if (permission !== "granted") {
+      renderPushControls(permission === "denied" ? "Notifications were denied. You can change this in your browser or phone settings." : "Notification permission was not granted.");
+      return;
+    }
+    const config = await pushApi("/api/config");
+    serviceWorkerRegistration = serviceWorkerRegistration || await navigator.serviceWorker.ready;
+    let subscription = await serviceWorkerRegistration.pushManager.getSubscription();
+    if (!subscription) {
+      subscription = await serviceWorkerRegistration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: base64UrlToBytes(config.publicKey)
+      });
+    }
+    const deviceToken = getPushDeviceToken();
+    const appUrl = new URL(location.href);
+    appUrl.search = "";
+    appUrl.hash = "";
+    await pushApi("/api/subscribe", {
+      method: "POST",
+      body: JSON.stringify({
+        subscription: subscription.toJSON(),
+        dailyGoal,
+        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || "Africa/Johannesburg",
+        startHour: 8,
+        endHour: 22,
+        appUrl: appUrl.href
+      })
+    }, deviceToken);
+    pushPreferences = { enabled: true, paused: false };
+    savePushPreferences();
+    renderPushControls("Notifications are enabled. A test notification is available, and surprises are scheduled between 08:00 and 22:00 local time.");
+  } catch (error) {
+    renderPushControls(error instanceof Error ? error.message : "Could not enable notifications. Check your connection and try again.");
+  }
+}
+
+async function syncPushSettings() {
+  if (!PUSH_API_BASE || !pushPreferences.enabled) return;
+  try {
+    const deviceToken = getPushDeviceToken();
+    await pushApi("/api/settings", {
+      method: "POST",
+      body: JSON.stringify({ dailyGoal, startHour: 8, endHour: 22 })
+    }, deviceToken);
+  } catch (error) {
+    renderPushControls(error instanceof Error ? error.message : "Could not sync notification settings.");
+  }
+}
+
+async function testPushNotification() {
+  try {
+    await pushApi("/api/test", { method: "POST", body: "{}" }, getPushDeviceToken());
+    renderPushControls("Test notification sent to the push service. Delivery may take a short time.");
+  } catch (error) {
+    renderPushControls(error instanceof Error ? error.message : "Test notification failed.");
+  }
+}
+
+async function togglePushPause() {
+  try {
+    const paused = !pushPreferences.paused;
+    await pushApi("/api/pause", { method: "POST", body: JSON.stringify({ paused }) }, getPushDeviceToken());
+    pushPreferences.paused = paused;
+    savePushPreferences();
+  } catch (error) {
+    renderPushControls(error instanceof Error ? error.message : "Could not update notification pause state.");
+  }
+}
+
+async function disablePushNotifications() {
+  try {
+    const deviceToken = getPushDeviceToken();
+    await pushApi("/api/unsubscribe", { method: "POST", body: "{}" }, deviceToken);
+    serviceWorkerRegistration = serviceWorkerRegistration || await navigator.serviceWorker.ready;
+    const subscription = await serviceWorkerRegistration.pushManager.getSubscription();
+    if (subscription) await subscription.unsubscribe();
+    pushPreferences = { enabled: false, paused: false };
+    savePushPreferences();
+    try {
+      localStorage.removeItem(PUSH_PREFERENCES_KEY);
+      localStorage.removeItem(PUSH_DEVICE_TOKEN_KEY);
+    } catch { /* Local state can be cleared manually if storage is unavailable. */ }
+    renderPushControls("Notifications are turned off. Your saved notes and reading progress were not changed.");
+  } catch (error) {
+    renderPushControls(error instanceof Error ? error.message : "Could not turn off notifications. Try again while online.");
+  }
+}
+
 function startRandom() {
   scheduleNext();
   $("status").textContent = "Random surprises are on while this app is open. The next appearance time is unpredictable.";
@@ -391,6 +565,10 @@ $("noteSearch").addEventListener("input", renderExplore);
 $("headerShowNow").addEventListener("click", () => { const note = pickNote(); if (note) showNote(note.id); });
 $("startRandom").addEventListener("click", startRandom);
 $("stopRandom").addEventListener("click", stopRandom);
+$("enablePush").addEventListener("click", enablePushNotifications);
+$("testPush").addEventListener("click", testPushNotification);
+$("pausePush").addEventListener("click", togglePushPause);
+$("disablePush").addEventListener("click", disablePushNotifications);
 $("closeOverlay").addEventListener("click", closeNote);
 $("doneNote").addEventListener("click", () => { markCurrentNoteRead(); closeNote(); });
 $("anotherNote").addEventListener("click", () => {
@@ -414,10 +592,21 @@ document.addEventListener("visibilitychange", () => {
 
 initialiseNotes();
 loadDailyPreferences();
+loadPushPreferences();
 render();
 renderExplore();
 if (storageBlocked && storageWarningMessage) showStorageWarning();
+if (new URLSearchParams(location.search).get("surprise") === "1" && notes.length) {
+  const surpriseUrl = new URL(location.href);
+  surpriseUrl.searchParams.delete("surprise");
+  history.replaceState({}, "", surpriseUrl);
+  const note = pickNote();
+  if (note) showNote(note.id);
+}
 
 if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) {
-  window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js").catch(() => {}));
+  window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js").then(registration => {
+    serviceWorkerRegistration = registration;
+    renderPushControls();
+  }).catch(() => renderPushControls("The service worker could not be registered. Reload the app and try again.")));
 }
