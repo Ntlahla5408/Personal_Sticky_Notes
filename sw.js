@@ -23,7 +23,7 @@ self.addEventListener("push", event => {
   const safeUrl = (() => {
     try {
       const url = new URL(message.data?.url || "./?surprise=1", self.location.href);
-      return url.origin === self.location.origin ? url.href : self.registration.scope + "?surprise=1";
+      return url.origin === self.location.origin && url.href.startsWith(self.registration.scope) ? url.href : self.registration.scope + "?surprise=1";
     } catch {
       return self.registration.scope + "?surprise=1";
     }
@@ -31,8 +31,6 @@ self.addEventListener("push", event => {
   event.waitUntil(self.registration.showNotification(message.title || "Little Notes", {
     body: message.body || "A small discovery is waiting for you.",
     tag: message.tag || "little-notes-surprise",
-    icon: "./icons/icon-192.png",
-    badge: "./icons/icon-192.png",
     renotify: false,
     data: { url: safeUrl }
   }));
