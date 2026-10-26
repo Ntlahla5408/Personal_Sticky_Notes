@@ -42,19 +42,30 @@ Content is bundled in `curated-notes.js`, so it is available offline and does no
 
 ## 4. Verification checklist
 
-- [ ] Fresh install stores 8 starter notes and 12 curated notes.
-- [ ] Existing install receives missing curated notes without losing existing records.
-- [ ] Existing personal note title/body values remain unchanged.
-- [ ] Re-running migration does not duplicate curated IDs.
-- [ ] A previously installed curated ID that disappears is marked dismissed and is not re-added.
-- [ ] Missing starter notes are not restored on existing installations.
-- [ ] Invalid note JSON is left untouched and produces a warning.
-- [ ] Invalid migration metadata is left untouched and produces a warning.
-- [ ] A partial migration adds only missing curated notes.
-- [ ] Source links use safe DOM-created anchors and only HTTP(S) URLs.
-- [ ] Note create/edit/delete controls are absent; the app does not expose note-write actions.
-- [ ] Manual pop-up, random selection, start/pause, interval validation, keyboard close, and offline loading work.
-- [ ] Service worker cache includes `curated-notes.js` and uses a new cache version.
+### Checked with a JavaScript harness and mocked browser storage/DOM
+
+- [x] Fresh install stores 8 starter notes and 12 curated notes.
+- [x] Existing install receives missing curated notes without losing existing records.
+- [x] Existing personal note title/body values remain unchanged.
+- [x] Re-running migration does not duplicate curated IDs.
+- [x] A previously installed curated ID that disappears is marked dismissed and is not re-added.
+- [x] Missing starter notes are not restored on existing installations.
+- [x] Invalid note JSON is left untouched and produces a warning.
+- [x] Invalid migration metadata is left untouched, blocks migration writes, and keeps valid notes readable.
+- [x] A partial migration adds only missing curated notes.
+- [x] Source attribution and a separate HTTP(S) link render with `target="_blank"` and `rel="noopener noreferrer"`.
+- [x] Note create/edit/delete controls are absent.
+- [x] Manual pop-up, close control, random start/pause, and interval validation work in the mocked DOM.
+- [x] The JavaScript files parse successfully.
+- [x] All 12 curated notes have unique IDs, complete metadata, valid ISO-style dates, and HTTPS source URLs.
+- [x] Service worker cache includes `curated-notes.js` and uses a new cache version.
+
+### Still needs a real browser check
+
+- [ ] Open the app in Chrome/Edge and check layout on desktop and mobile.
+- [ ] Verify the service worker installs and the app loads offline after its first successful load.
+- [ ] Verify the pop-up, source link, and settings behaviour in a real browser.
+- [ ] Test against a copy of real pre-existing localStorage data before merging.
 
 ## 5. Implementation files
 
