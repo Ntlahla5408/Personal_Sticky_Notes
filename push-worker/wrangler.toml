@@ -1,0 +1,19 @@
+name = "little-notes-push"
+main = "src/index.js"
+compatibility_date = "2026-10-01"
+compatibility_flags = ["nodejs_compat"]
+workers_dev = true
+
+[triggers]
+crons = ["*/5 * * * *"]
+
+[vars]
+# Set FRONTEND_ORIGIN to the origin only, for example https://yourname.github.io
+# Do not include the repository path or a trailing slash.
+FRONTEND_ORIGIN = "SET_TO_YOUR_GITHUB_PAGES_ORIGIN"
+VAPID_SUBJECT = "mailto:replace-with-your-email@example.com"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "little-notes-push"
+database_id = "REPLACE_WITH_D1_DATABASE_ID"
