@@ -1,5 +1,11 @@
 const KEY = "personal-sticky-notes-v1";
 const MIGRATION_KEY = "personal-sticky-notes-curated-tech-v1";
+const PREFERENCES_KEY = "personal-sticky-notes-preferences-v1";
+const DAILY_PROGRESS_KEY = "personal-sticky-notes-daily-progress-v1";
+const DEFAULT_DAILY_GOAL = 5;
+let dailyGoal = DEFAULT_DAILY_GOAL;
+let dailyProgress = { date: "", readIds: [] };
+let activeCategory = "All";
 const SEED_NOTES = [
   {
     title: "A boundary is not a punishment",
@@ -150,6 +156,108 @@ function showStorageWarning() {
   $("status").textContent = "Read-only mode is active. Saved data was not changed.";
 }
 
+function localDateKey() {
+  const now = new Date();
+  return String(now.getFullYear()) + "-" + String(now.getMonth() + 1).padStart(2, "0") + "-" + String(now.getDate()).padStart(2, "0");
+}
+
+function loadDailyPreferences() {
+  dailyProgress = { date: localDateKey(), readIds: [] };
+  try {
+    const rawPreferences = localStorage.getItem(PREFERENCES_KEY);
+    if (rawPreferences) {
+      const parsed = JSON.parse(rawPreferences);
+      if (parsed && Number.isInteger(parsed.dailyGoal) && [1, 3, 5, 8, 10, 15, 20].includes(parsed.dailyGoal)) dailyGoal = parsed.dailyGoal;
+    }
+    const rawProgress = localStorage.getItem(DAILY_PROGRESS_KEY);
+    if (rawProgress) {
+      const parsed = JSON.parse(rawProgress);
+      if (parsed && typeof parsed.date === "string" && Array.isArray(parsed.readIds) && parsed.readIds.every(id => typeof id === "string")) dailyProgress = parsed;
+    }
+  } catch { /* Optional preferences are not allowed to overwrite unreadable stored data. */ }
+  if (dailyProgress.date !== localDateKey()) dailyProgress = { date: localDateKey(), readIds: [] };
+  $("dailyGoal").value = String(dailyGoal);
+  renderDailyProgress();
+}
+
+function saveDailyGoal() {
+  dailyGoal = Number($("dailyGoal").value);
+  try {
+    localStorage.setItem(PREFERENCES_KEY, JSON.stringify({ dailyGoal }));
+    $("goalSaved").textContent = "Your daily goal is saved on this device.";
+  } catch {
+    $("goalSaved").textContent = "This browser could not save your goal. It applies until you close the app.";
+  }
+  renderDailyProgress();
+}
+
+function renderDailyProgress() {
+  const count = dailyProgress.readIds.length;
+  $("dailyProgressText").textContent = Math.min(count, dailyGoal) + " of " + dailyGoal + (dailyGoal === 1 ? " note" : " notes");
+  $("dailyProgressBar").style.width = Math.min(100, (count / dailyGoal) * 100) + "%";
+  $("dailyProgressLabel").textContent = count >= dailyGoal ? "Daily goal reached" : "Today's discoveries";
+}
+
+function markCurrentNoteRead() {
+  if (!currentNoteId) return;
+  if (dailyProgress.date !== localDateKey()) dailyProgress = { date: localDateKey(), readIds: [] };
+  if (!dailyProgress.readIds.includes(currentNoteId)) {
+    dailyProgress.readIds.push(currentNoteId);
+    try { localStorage.setItem(DAILY_PROGRESS_KEY, JSON.stringify(dailyProgress)); } catch { /* Keep session progress. */ }
+  }
+  renderDailyProgress();
+}
+
+function switchView(viewName) {
+  ["home", "explore", "settings"].forEach(name => $(name + "View").classList.toggle("hidden", name !== viewName));
+  document.querySelectorAll("[data-view]").forEach(button => {
+    const active = button.dataset.view === viewName;
+    button.classList.toggle("active", active);
+    if (active) button.setAttribute("aria-current", "page");
+    else button.removeAttribute("aria-current");
+  });
+  if (viewName === "explore") renderExplore();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function renderCards(list, collection) {
+  if (!collection.length) {
+    list.textContent = "";
+    const empty = document.createElement("div");
+    empty.className = "empty";
+    empty.textContent = "No notes match this search yet.";
+    list.appendChild(empty);
+    return;
+  }
+  list.innerHTML = collection.map(note => {
+    const category = note.category ? '<span class="note-category">' + escapeHtml(note.category) + '</span>' : "";
+    return '<article class="note-card"><div class="card-meta">' + category + '</div><h3>' + escapeHtml(note.title) + '</h3><p>' + escapeHtml(excerpt(note.body)) + '</p><div class="card-actions"><button type="button" data-show="' + escapeHtml(note.id) + '">Read note ↗</button></div></article>';
+  }).join("");
+  list.querySelectorAll("[data-show]").forEach(button => button.addEventListener("click", () => showNote(button.dataset.show)));
+}
+
+function renderExplore() {
+  const searchTerm = $("noteSearch").value.trim().toLowerCase();
+  const categories = ["All", ...new Set(notes.map(note => note.category).filter(Boolean))];
+  const filterHost = $("categoryFilters");
+  filterHost.textContent = "";
+  categories.forEach(categoryName => {
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = "filter-chip" + (activeCategory === categoryName ? " active" : "");
+    chip.textContent = categoryName;
+    chip.addEventListener("click", () => { activeCategory = categoryName; renderExplore(); });
+    filterHost.appendChild(chip);
+  });
+  const filtered = notes.filter(note => {
+    const matchesCategory = activeCategory === "All" || note.category === activeCategory;
+    const matchesSearch = !searchTerm || (note.title + " " + note.body + " " + (note.category || "")).toLowerCase().includes(searchTerm);
+    return matchesCategory && matchesSearch;
+  });
+  $("exploreCount").textContent = filtered.length + " " + (filtered.length === 1 ? "note" : "notes");
+  renderCards($("exploreList"), filtered);
+}
+
 function escapeHtml(value) {
   return String(value).replace(/[&<>"']/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
 }
@@ -160,30 +268,17 @@ function excerpt(body) {
 }
 
 function render() {
-  $("noteCount").textContent = `${notes.length} ${notes.length === 1 ? "note" : "notes"}`;
-  const list = $("notesList");
-  if (!notes.length) {
-    list.textContent = "";
-    const empty = document.createElement("div");
-    empty.className = "empty";
-    empty.textContent = storageBlocked
-      ? "Notes cannot be displayed because the saved data could not be read safely."
-      : "No notes are available.";
-    list.appendChild(empty);
-    $("showNow").disabled = true;
-    return;
+  $("noteCount").textContent = notes.length + " " + (notes.length === 1 ? "note" : "notes");
+  renderCards($("notesList"), notes.slice(0, 6));
+  $("showNow").disabled = notes.length === 0;
+  $("headerShowNow").disabled = notes.length === 0;
+  if (notes.length > 6) {
+    const more = document.createElement("button");
+    more.className = "secondary";
+    more.textContent = "Explore all notes";
+    more.addEventListener("click", () => switchView("explore"));
+    $("notesList").appendChild(more);
   }
-  $("showNow").disabled = false;
-  list.innerHTML = notes.map(note => {
-    const category = note.category ? `<span class="note-category">${escapeHtml(note.category)}</span>` : "";
-    return `<article class="note-card">
-      <div class="card-meta">${category}</div>
-      <h3>${escapeHtml(note.title)}</h3>
-      <p>${escapeHtml(excerpt(note.body))}</p>
-      <div class="card-actions"><button data-show="${escapeHtml(note.id)}">Read full note</button></div>
-    </article>`;
-  }).join("");
-  list.querySelectorAll("[data-show]").forEach(button => button.addEventListener("click", () => showNote(button.dataset.show)));
 }
 
 function safeSourceUrl(value) {
@@ -255,9 +350,9 @@ function pickNote() {
 }
 
 function randomDelay() {
-  let min = Math.max(1, Number($("minMinutes").value) || 20);
-  let max = Math.max(2, Number($("maxMinutes").value) || 90);
-  if (max < min) [min, max] = [max, min];
+  // Temporary default timing for this browser prototype; delivery rules will be discussed separately.
+  const min = 20;
+  const max = 90;
   return (min + Math.random() * (max - min)) * 60 * 1000;
 }
 
@@ -273,30 +368,31 @@ function scheduleNext() {
 }
 
 function startRandom() {
-  if (Number($("maxMinutes").value) < Number($("minMinutes").value)) {
-    $("status").textContent = "Maximum interval must be greater than or equal to the minimum.";
-    return;
-  }
   scheduleNext();
-  $("status").textContent = "Random notes are on while this app is open. The next appearance time is unpredictable.";
-  $("startRandom").textContent = "Restart random notes";
+  $("status").textContent = "Random surprises are on while this app is open. The next appearance time is unpredictable.";
+  $("settingsStatus").textContent = "Surprises are active while this app is open and active.";
+  $("startRandom").textContent = "Restart surprises";
 }
 
 function stopRandom() {
   clearTimeout(timerId);
   timerId = null;
-  $("status").textContent = "Random notes are paused.";
+  $("status").textContent = "Random surprises are paused.";
+  $("settingsStatus").textContent = "Surprises are paused.";
 }
 
 $("showNow").addEventListener("click", () => {
   const note = pickNote();
   if (note) showNote(note.id);
 });
-$("settingsToggle").addEventListener("click", () => $("settingsPanel").classList.toggle("hidden"));
+document.querySelectorAll("[data-view]").forEach(button => button.addEventListener("click", () => switchView(button.dataset.view)));
+$("dailyGoal").addEventListener("change", saveDailyGoal);
+$("noteSearch").addEventListener("input", renderExplore);
+$("headerShowNow").addEventListener("click", () => { const note = pickNote(); if (note) showNote(note.id); });
 $("startRandom").addEventListener("click", startRandom);
 $("stopRandom").addEventListener("click", stopRandom);
 $("closeOverlay").addEventListener("click", closeNote);
-$("doneNote").addEventListener("click", closeNote);
+$("doneNote").addEventListener("click", () => { markCurrentNoteRead(); closeNote(); });
 $("anotherNote").addEventListener("click", () => {
   const note = pickNote();
   if (note) showNote(note.id);
@@ -311,13 +407,15 @@ document.addEventListener("visibilitychange", () => {
   if (document.hidden) {
     clearTimeout(timerId);
     timerId = null;
-  } else if ($("status").textContent.startsWith("Random notes are on")) {
+  } else if ($("status").textContent.startsWith("Random surprises are on")) {
     scheduleNext();
   }
 });
 
 initialiseNotes();
+loadDailyPreferences();
 render();
+renderExplore();
 if (storageBlocked && storageWarningMessage) showStorageWarning();
 
 if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) {

@@ -1,4 +1,4 @@
-const CACHE = "personal-sticky-notes-v2";
+const CACHE = "personal-sticky-notes-v3";
 const ASSETS = ["./", "./index.html", "./styles.css", "./app.js", "./curated-notes.js", "./manifest.webmanifest"];
 self.addEventListener("install", event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(ASSETS)));
