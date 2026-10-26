@@ -107,7 +107,11 @@ The first release is a manually curated set. It must not claim to provide live o
 - The reader can choose a daily note goal (1, 3, 5, 8, 10, 15, or 20 notes).
 - Daily progress counts distinct notes marked as read and resets when the local calendar date changes.
 - The reader can start/restart or pause random appearances.
-- In-app pop-ups require the app to be open and active.\n- Optional Web Push sends generic system notifications while the app is closed, subject to browser/device support and permission. Delivery must not be promised as guaranteed.\n- The push schedule spreads up to the selected daily goal across 08:00–22:00 in the device-detected IANA time zone, with random variation inside each slot. A five-minute Worker Cron Trigger means delivery time is approximate.\n- Tapping a notification opens the PWA and chooses a note locally; the Worker must not receive note bodies or individual read-note IDs.\n- Pausing or disabling push must not modify note storage, daily progress, or the local daily goal.
+- In-app pop-ups require the app to be open and active.
+- Optional Web Push sends generic system notifications while the app is closed, subject to browser/device support and permission. Delivery must not be promised as guaranteed.
+- The push schedule spreads up to the selected daily goal across 08:00–22:00 in the device-detected IANA time zone, with random variation inside each slot. A five-minute Worker Cron Trigger means delivery time is approximate.
+- Tapping a notification opens the PWA and chooses a note locally; the Worker must not receive note bodies or individual read-note IDs.
+- Pausing or disabling push must not modify note storage, daily progress, or the local daily goal.
 
 ### 7.3 Personal notes
 
@@ -151,7 +155,11 @@ The implementation follows these safeguards:
 - **Maintainability:** curated content should be stored separately from rendering and scheduling logic where practical.
 - **Cost:** use free hosting and tools where feasible.
 
-## 10. Optional browser push extension\n\nThe browser push extension is isolated from the core notes store and is deployed separately. See `PUSH_SETUP.md` for Cloudflare Worker + D1 setup. Its API must validate the configured Pages origin, require a per-device control token for subscription management, rate-limit requests, validate HTTPS push endpoints, and keep VAPID private-key material in Worker secrets.\n\n## 11. Out of scope for the first release
+## 10. Optional browser push extension
+
+The browser push extension is isolated from the core notes store and is deployed separately. See `PUSH_SETUP.md` for Cloudflare Worker + D1 setup. Its API must validate the configured Pages origin, require a per-device control token for subscription management, rate-limit requests, validate HTTPS push endpoints, and keep VAPID private-key material in Worker secrets.
+
+## 11. Out of scope for the first release
 
 - Automatically fetching or publishing news.
 - Scheduled source ingestion, AI-generated summaries, or an automated editorial pipeline.
@@ -184,4 +192,13 @@ The first release is ready for review when:
 The implementation is authorised on the dedicated feature branch. Review the implementation plan and test results before merging to the default branch.
 
 Implementation is staged on a dedicated feature branch. Do not make destructive storage changes or remove existing notes without explicit approval.
-\n### Browser push acceptance checks\n\n- [ ] A user action requests notification permission; permission is never requested on page load.\n- [ ] Enabling push registers/reuses the service-worker subscription and stores it on the Worker without uploading notes.\n- [ ] A test push displays a system notification and tapping it opens a locally selected note.\n- [ ] Scheduled sends are limited to the daily goal and active hours; pause/resume/disable work.\n- [ ] Existing note storage, migration metadata, daily goal and read-progress records remain intact.\n- [ ] Test on the installed Android PWA while foregrounded, closed, offline, permission-denied and permission-granted.\n- [ ] Verify deployment and key configuration before treating push as live.\n
+
+### Browser push acceptance checks
+
+- [ ] A user action requests notification permission; permission is never requested on page load.
+- [ ] Enabling push registers/reuses the service-worker subscription and stores it on the Worker without uploading notes.
+- [ ] A test push displays a system notification and tapping it opens a locally selected note.
+- [ ] Scheduled sends are limited to the daily goal and active hours; pause/resume/disable work.
+- [ ] Existing note storage, migration metadata, daily goal and read-progress records remain intact.
+- [ ] Test on the installed Android PWA while foregrounded, closed, offline, permission-denied and permission-granted.
+- [ ] Verify deployment and key configuration before treating push as live.
