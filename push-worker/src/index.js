@@ -222,7 +222,7 @@ async function handleRequest(request, env) {
       subscription_json=excluded.subscription_json, device_token_hash=excluded.device_token_hash,
       app_url=excluded.app_url, daily_goal=excluded.daily_goal, time_zone=excluded.time_zone,
       start_hour=excluded.start_hour, end_hour=excluded.end_hour, local_day=excluded.local_day,
-      next_slot=0, next_send_at=excluded.next_send_at, paused=0, updated_at=excluded.updated_at`)
+      next_slot=excluded.next_slot, next_send_at=excluded.next_send_at, paused=0, updated_at=excluded.updated_at`)
       .bind(row.endpoint, row.subscription_json, row.device_token_hash, row.app_url, row.daily_goal, row.time_zone,
         row.start_hour, row.end_hour, row.local_day, row.next_slot, row.next_send_at, row.paused, row.created_at, row.updated_at).run();
     return json({ ok: true, message: "Notifications enabled." }, 200, cors);
